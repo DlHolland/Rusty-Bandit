@@ -1,9 +1,10 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser};
 use std::process::ExitCode;
+use std::time::Instant;
 
 use colored::Colorize;
 
-use ruff_cli::args::{Args, Command};
+use ruff_cli::args::{Args};
 use ruff_cli::{run, ExitStatus};
 
 #[cfg(target_os = "windows")]
@@ -23,25 +24,14 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 pub fn main() -> ExitCode {
-    let mut args: Vec<_> = wild::args().collect();
-
-    // Clap doesn't support default subcommands but we want to run `check` by
-    // default for convenience and backwards-compatibility, so we just
-    // preprocess the arguments accordingly before passing them to Clap.
-    if let Some(arg) = args.get(1) {
-        if !Command::has_subcommand(rewrite_legacy_subcommand(arg))
-            && arg != "-h"
-            && arg != "--help"
-            && arg != "-V"
-            && arg != "--version"
-            && arg != "help"
-        {
-            args.insert(1, "check".into());
-        }
-    }
-
+    print!("Look at that!  I found the root!\n");
+    let args: Vec<_> = wild::args().collect();
     let args = Args::parse_from(args);
-
+    let before = Instant::now();
+    run(args);
+    println!("Elapsed time: {:.2?}", before.elapsed());
+    let args: Vec<_> = wild::args().collect();
+    let args = Args::parse_from(args);
     match run(args) {
         Ok(code) => code.into(),
         Err(err) => {
@@ -51,14 +41,5 @@ pub fn main() -> ExitCode {
             }
             ExitStatus::Error.into()
         }
-    }
-}
-
-fn rewrite_legacy_subcommand(cmd: &str) -> &str {
-    match cmd {
-        "--explain" => "rule",
-        "--clean" => "clean",
-        "--generate-shell-completion" => "generate-shell-completion",
-        cmd => cmd,
     }
 }
